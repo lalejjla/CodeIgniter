@@ -34,7 +34,7 @@ class Table_test extends CI_TestCase {
 	}
 
 	/*
-	 * @depends testPrepArgs
+	 * @depends	test_prep_args
 	 */
 	public function test_set_heading()
 	{
@@ -55,7 +55,7 @@ class Table_test extends CI_TestCase {
 	}
 
 	/*
-	 * @depends testPrepArgs
+	 * @depends	test_prep_args
 	 */
 	public function test_add_row()
 	{
@@ -67,7 +67,7 @@ class Table_test extends CI_TestCase {
 		$this->table->add_row('your', 'pony', 'stinks');
 		$this->table->add_row('my pony', '>', 'your pony');
 
-		$this->assertEquals(count($this->table->rows), 3);
+		$this->assertCount(3, $this->table->rows);
 
 		$this->assertEquals(
 			array(
@@ -188,8 +188,8 @@ class Table_test extends CI_TestCase {
 		}
 
 		$this->assertFalse($this->table->auto_heading);
-		$this->assertEquals(count($this->table->heading), 3);
-		$this->assertEquals(count($this->table->rows), 2);
+		$this->assertCount(3, $this->table->heading);
+		$this->assertCount(2, $this->table->rows);
 
 		$this->table->clear();
 
@@ -200,22 +200,20 @@ class Table_test extends CI_TestCase {
 
 	public function test_set_from_array()
 	{
-		$this->assertFalse($this->table->set_from_array('bogus'));
-		$this->assertFalse($this->table->set_from_array(NULL));
-
 		$data = array(
 			array('name', 'color', 'number'),
 			array('Laura', 'Red', '22'),
 			array('Katie', 'Blue')
 		);
 
-		$this->table->set_from_array($data, FALSE);
+		$this->table->auto_heading = FALSE;
+		$this->table->set_from_array($data);
 		$this->assertEmpty($this->table->heading);
 
 		$this->table->clear();
 
 		$this->table->set_from_array($data);
-		$this->assertEquals(count($this->table->rows), 2);
+		$this->assertCount(2, $this->table->rows);
 
 		$expected = array(
 			array('data' => 'name'),
@@ -235,22 +233,14 @@ class Table_test extends CI_TestCase {
 
 	public function test_set_from_object()
 	{
-		// Make a stub of query instance
-		$query = new CI_TestCase();
-		$query->list_fields = function(){
-			return array('name', 'email');
-		};
-		$query->result_array = function(){
-			return array(
-					array('name' => 'John Doe', 'email' => 'john@doe.com'),
-					array('name' => 'Foo Bar', 'email' => 'foo@bar.com'),
-				);
-		};
-		$query->num_rows = function(){
-			return 2;
-		};
+		// This needs to be passed by reference to CI_DB_result::__construct()
+		$dummy = new stdClass();
+		$dummy->conn_id = NULL;
+		$dummy->result_id = NULL;
 
-		$this->table->set_from_object($query);
+		$db_result = new DB_result_dummy($dummy);
+
+		$this->table->set_from_db_result($db_result);
 
 		$expected = array(
 			array('data' => 'name'),
@@ -280,14 +270,31 @@ class Table_test extends CI_TestCase {
 		$table = $this->table->generate($data);
 
 		// Test the table header
-		$this->assertTrue(strpos($table, '<th>Name</th>') !== FALSE);
-		$this->assertTrue(strpos($table, '<th>Color</th>') !== FALSE);
-		$this->assertTrue(strpos($table, '<th>Size</th>') !== FALSE);
+		$this->assertContains('<th>Name</th>', $table);
+		$this->assertContains('<th>Color</th>', $table);
+		$this->assertContains('<th>Size</th>', $table);
 
 		// Test the first entry
-		$this->assertTrue(strpos($table, '<td>Fred</td>') !== FALSE);
-		$this->assertTrue(strpos($table, '<td>Blue</td>') !== FALSE);
-		$this->assertTrue(strpos($table, '<td>Small</td>') !== FALSE);
+		$this->assertContains('<td>Fred</td>', $table);
+		$this->assertContains('<td>Blue</td>', $table);
+		$this->assertContains('<td>Small</td>', $table);
 	}
 
+}
+
+// We need this for the _set_from_db_result() test
+class DB_result_dummy extends CI_DB_result
+{
+	public function list_fields()
+	{
+		return array('name', 'email');
+	}
+
+	public function result_array()
+	{
+		return array(
+			array('name' => 'John Doe', 'email' => 'john@doe.com'),
+			array('name' => 'Foo Bar', 'email' => 'foo@bar.com')
+		);
+	}
 }
